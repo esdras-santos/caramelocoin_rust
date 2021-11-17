@@ -6,14 +6,14 @@ pub struct MerkleTree{
 }
 
 impl MerkleTree{
-    pub fn new(data: Vec<Vec<u8>>) -> Self{
-        let nodes: Vec<MerkleNode>;
+    pub fn new(data: &mut Vec<Vec<u8>>) -> Self{
+        let mut nodes: Vec<MerkleNode> = Vec::new();
         if data.len() % 2 != 0{
             data.push(data[data.len() - 1]);
         }
 
         for d in data{
-            let node = MerkleNode::new(None, None, Some(d));
+            let node = MerkleNode::new(None, None, Some(d.to_vec()));
             nodes.push(node);
         }
         let mut i: usize = 0;
