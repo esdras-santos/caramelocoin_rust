@@ -4,7 +4,7 @@ use sha2::{Sha256, Digest};
 use serde_derive::{Deserialize, Serialize};
 // use serde::Serialize;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Transaction{
     sig: Vec<u8>,
     nonce: u64,
@@ -28,10 +28,10 @@ impl Transaction{
     }
     pub fn id(&self) -> Vec<u8>{
         let mut data: Vec<u8> = Vec::new();
-        data.append(&mut to_bytes(&self.nonce.clone()));
+        data.append(&mut Self::to_bytes(&self.nonce.clone()));
         data.append(&mut self.pubkey.clone());
         data.append(&mut self.recipient.clone());
-        data.append(&mut to_bytes(&self.value.clone()));
+        data.append(&mut Self::to_bytes(&self.value.clone()));
 
         let mut hasher = Sha256::new();
         hasher.update(data);
@@ -70,13 +70,15 @@ impl Transaction{
     pub fn deserialize(s: &str) -> Transaction{
         let tx: Transaction = serde_json::from_str(s).unwrap();
         tx
-    }    
+    }
+    
+    pub fn to_bytes(input: &u64) -> Vec<u8>{
+        let mut bytes:Vec<u8> = Vec::new();
+        bytes.extend(&input.to_be_bytes());
+        bytes
+    }
 }
-pub fn to_bytes(input: &u64) -> Vec<u8>{
-    let mut bytes:Vec<u8> = Vec::new();
-    bytes.extend(&input.to_be_bytes());
-    bytes
-}
+
     
     
 
