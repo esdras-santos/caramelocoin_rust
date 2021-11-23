@@ -1,6 +1,7 @@
 use sha2::{Sha256, Digest};
 use serde_derive::{Deserialize, Serialize};
 use crate::wallet::wallet::Wallet;
+use crate::blockchain::blockchain::Blockchain;
 
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -13,7 +14,7 @@ pub struct Transaction{
 }
     
 impl Transaction{
-    pub fn new(s: Vec<u8>, n: u64, pk: Vec<u8>, r: Vec<u8>, v: u64) -> Self{
+    pub fn new_transaction(s: Vec<u8>, n: u64, pk: Vec<u8>, r: Vec<u8>, v: u64) -> Self{
         Transaction{
             //the signature need to be genereted by a the function sign
             sig: s,
@@ -77,6 +78,14 @@ impl Transaction{
         bytes.extend(&input.to_be_bytes());
         bytes
     }
+
+    // pub fn sign(&self, w: &Wallet, chain: &Blockchain) {
+
+    // }
+
+    // pub fn verify_signature(txid: Vec<u8>, pubkey: Vec<u8>, sig: Vec<u8>) -> bool{
+// 
+    // }
 }
 
     

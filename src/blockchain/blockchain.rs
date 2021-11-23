@@ -16,42 +16,110 @@ use std::path::Path;
 pub struct Blockchain{
     last_hash: Vec<u8>,
     bcdb: Database,
-    accdb: AccDB
+    acc: AccDB
 }
 
 impl Blockchain{
-    //this function needs to receive the lasthash, blockchain db and accounts db
-    // pub fn get_blockchain_instance(last_hash: Vec<u8>) -> Self{
+    pub fn get_blockchain_instance(last_hash: Vec<u8>, db: &Database, acc: &AccDB) -> Self{
 
-    // }
+    }
 
-    // pub fn add_block(&self, block: &Block){
+    pub fn add_block(&self, block: &Block){
+        let read_ops = ReadOptions::new();
+        let write_ops = WriteOptions::new();
+        
+        match self.bcdb.get(&read_ops, &block.hash()){
+            Ok(_) => return,
+            _ =>  {} 
+        }
 
-    // }
+        match self.bcdb.put(&write_ops, &block.hash(), &block.serialize().as_bytes()[..]){
+            Ok(_) => { () },
+            Err(e) => { panic!("failed to write to database: {:?}", e) }
+        };
+        
+        let last_hash = match self.bcdb.get(&read_ops, &"lh".as_bytes()){
+            Ok(h) => {h},
+            Err(e) =>  {println!("Error on getting last hash {:?}", e)}
+        };
 
-    // pub fn get_block(&self, block_hash: &Vec<u8>) -> Block{
+        let last_block = match self.bcdb.get(&read_ops, &last_hash){
+            Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
+                Ok(v) => crate::blockchain::block::Block::deserialize(v),
+                Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+            } },
+            Err(e) => { panic!("failed to write to database: {:?}", e) }
+        };
 
-    // }
+        if u64::from_le_bytes(Self::clone_into_array(&block.height[..])) > u64::from_le_bytes(Self::clone_into_array(&last_block.height[..])){
+            match self.bcdb.put(&write_ops, &"lh".as_bytes(), &block.hash()){
+                Ok(_) => { () },
+                Err(e) => { panic!("failed to write to database: {:?}", e) }
+            };
+            self.last_hash = block.hash()
+        }
 
-    // pub fn get_block_hashes(&self) -> Vec<Vec<u8>>{
+        self.acc.update_balance(&block)
+    }
 
-    // } 
+    pub fn get_block(&self, block_hash: &Vec<u8>) -> Block{
+        let read_ops = ReadOptions::new();
+        let block = match self.bcdb.get(&read_ops, block_hash){
+            Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
+                Ok(v) => crate::blockchain::block::Block::deserialize(v),
+                Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+            } },
+            Err(e) => { panic!("failed to read from database: {:?}", e) }
+        };
+        block
+    }
 
-    // pub fn get_best_height(&self) -> u64{
+    //pub fn get_block_hashes(&self) -> Vec<Vec<u8>>{
 
-    // }
+    //} 
 
-    // pub fn get_last_hash(&self) -> Vec<u8>{
+    pub fn get_best_height(&self) -> u64{
+        let read_ops = ReadOptions::new();
+        let last_hash = match self.bcdb.get(&read_ops, &"lh".as_bytes()){
+            Ok(h) => {h},
+            Err(e) =>  {println!("Error on getting last hash {:?}", e)}
+        };
 
-    // }
+        let last_block = match self.bcdb.get(&read_ops, &last_hash){
+            Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
+                Ok(v) => crate::blockchain::block::Block::deserialize(v),
+                Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+            } },
+            Err(e) => { panic!("failed to write to database: {:?}", e) }
+        };
+
+        return u64::from_le_bytes(Self::clone_into_array(&last_block.height[..]))
+    }
+
+    pub fn get_last_hash(&self) -> Vec<u8>{
+        let read_ops = ReadOptions::new();
+        let last_hash = match self.bcdb.get(&read_ops, &"lh".as_bytes()){
+            Ok(h) => {h},
+            Err(e) =>  {println!("Error on getting last hash {:?}", e)}
+        };
+
+        let last_block = match self.bcdb.get(&read_ops, &last_hash){
+            Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
+                Ok(v) => crate::blockchain::block::Block::deserialize(v),
+                Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+            } },
+            Err(e) => { panic!("failed to write to database: {:?}", e) }
+        };
+        last_block.hash()
+    }
 
     // pub fn mine_block(&self, txs: &Vec<Transaction>) -> Block{
 
     // }
 
-    // pub fn db_exists(path: &str) -> bool{
-
-    // }
+    pub fn db_exists(path: &str) -> bool{
+        Path::new(path).exists()
+    }
 
     pub fn init_blockchain(w: &Wallet, dbpath: &str) -> Self{
         let path = Path::new(dbpath);
@@ -91,13 +159,33 @@ impl Blockchain{
         Blockchain{
             last_hash: last_hash,
             bcdb: database,
-            accdb: acc
+            acc: acc
         }
     }
 
-    // pub fn continue_blockchain(db_path: &str) -> Self{
+    pub fn continue_blockchain(db_path: &str) -> Self{
+        if Self::db_exists(db_path) == false{
+            panic!("no existing blockchain found, create one!")
+        }
+        let path = Path::new(db_path);
+        let mut options = Options::new();
+        options.create_if_missing = true;
 
-    // }
+        let database = match Database::open(&path, &options){
+            Ok(db) => { db },
+            Err(e) => { panic!("failed to open database: {:?}", e) }
+        };
+        let read_ops = ReadOptions::new();
+
+        let last_hash = match database.get(&read_ops, &"lh".as_bytes()){
+            Ok(h) => {h},
+            Err(e) =>  {println!("Error on getting last hash {:?}", e)}
+        };
+
+        let acc = AccDB::get_accounts();
+        let chain = get_blockchain_instance(last_hash: Vec<u8>);
+        return chain
+    }
 
     // pub fn find_transaction(&self, id: Vec<u8>) -> Transaction{
 
@@ -106,4 +194,13 @@ impl Blockchain{
     // pub fn verify_transaction(&self, tx: &Transaction) -> bool{
 
     // }
+    fn clone_into_array<A, T>(slice: &[T]) -> A
+    where
+        A: Default + AsMut<[T]>,
+        T: Clone,
+    {
+        let mut a = A::default();
+        <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
+        a
+    }
 }

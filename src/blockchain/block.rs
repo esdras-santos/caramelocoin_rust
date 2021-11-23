@@ -15,7 +15,7 @@ pub struct Block{
     timestamp: Vec<u8>,
     bits: Vec<u8>,
     pub nonce: Option<Vec<u8>>,
-    height: Vec<u8>,
+    pub height: Vec<u8>,
     pub transactions: Vec<Transaction>
 }
 
