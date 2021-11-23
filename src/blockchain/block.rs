@@ -16,7 +16,7 @@ pub struct Block{
     bits: Vec<u8>,
     pub nonce: Option<Vec<u8>>,
     height: Vec<u8>,
-    transactions: Vec<Transaction>
+    pub transactions: Vec<Transaction>
 }
 
 impl Block{

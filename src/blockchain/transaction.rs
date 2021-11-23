@@ -1,16 +1,15 @@
 use sha2::{Sha256, Digest};
-// use serde::Deserialize;
-// use serde_json::json;
 use serde_derive::{Deserialize, Serialize};
-// use serde::Serialize;
+use crate::wallet::wallet::Wallet;
+
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Transaction{
     sig: Vec<u8>,
     nonce: u64,
-    pubkey: Vec<u8>,
-    recipient: Vec<u8>,
-    value: u64
+    pub pubkey: Vec<u8>,
+    pub recipient: Vec<u8>,
+    pub value: u64
 }
     
 impl Transaction{
@@ -40,7 +39,8 @@ impl Transaction{
         result
     }
 
-    pub fn coinbase_tx() -> Self{
+    //FIX THIS FUNCTON FIX THIS FUNCTON FIX THIS FUNCTON
+    pub fn coinbase_tx(w: &Wallet) -> Self{
         Transaction{
             nonce: 0,
             pubkey: vec![0x0000000000000000000000000000000000000001],

@@ -6,7 +6,7 @@ pub struct Wallet{
 }
 impl Wallet{
 
-    pub fn address() -> Vec<u8>{
+    pub fn address(&self) -> Vec<u8>{
 
     }
 
