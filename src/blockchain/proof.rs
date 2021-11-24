@@ -5,8 +5,10 @@ use std::convert::AsMut;
 use num::pow::pow;
 use crate::blockchain::block;
 use crate::blockchain::transaction;
+use crate::blockchain::blockchain::Blockchain;
 
 const ONE_DAY: u32 = 86400;
+const BLOCKS_PER_DAY: u64 = 1440;
 
 pub struct ProofOfWork{
     block: block::Block,
@@ -27,7 +29,18 @@ impl ProofOfWork{
     }
 
     //this function will be implemented at the end of the blockchain module
-    pub fn get_bits(height: &u64, last_hash: &Vec<u8>) -> Vec<u8>{}
+    pub fn get_bits(height: &u64, last_hash: &Vec<u8>, chain: &Blockchain) -> Vec<u8>{
+        let pow: ProofOfWork;
+        if height == &0{
+            vec![0x01,0xff,0xff,0xff]
+        } else if height % BLOCKS_PER_DAY == 0 {
+            let last_block = chain.get_block(&chain.last_hash.unwrap());
+            return pow.new_bits(&last_block.bits, &Self::get_time_difference(chain));
+        } else {
+            let last_block = chain.get_block(&chain.last_hash.unwrap());
+            last_block.bits
+        }
+    }
 
     pub fn target_to_bits(target: &BigUint) -> Vec<u8>{
         let exponent: usize;
@@ -91,8 +104,17 @@ impl ProofOfWork{
         return (coefficient * pow(base, exponent - n)).to_biguint().unwrap(); 
     }
 
-    pub fn get_time_difference() -> u64{
-        
+    pub fn get_time_difference(chain: &Blockchain) -> u64{
+        let iter = chain.iterator();
+        let i: u64 = 0;
+        while i < BLOCKS_PER_DAY{
+            iter.next();
+            i+=1;
+        }
+        let first_block = chain.get_block(&iter.current_hash);
+        let last_block = chain.get_block(&iter.current_hash);
+        u64::from_le_bytes(Self::clone_into_array(&last_block.timestamp[..])) - u64::from_le_bytes(Self::clone_into_array(&first_block.timestamp[..]))
+
     }
 
     pub fn validate(&self) -> bool{

@@ -4,7 +4,7 @@ use std::str;
 use crate::blockchain::block::Block;
 
 pub struct BlockchanIterator{
-    current_hash: Vec<u8>,
+    pub current_hash: Vec<u8>,
     database: Database
 }
 

@@ -6,14 +6,15 @@ use std::time::{UNIX_EPOCH, SystemTime};
 use crate::blockchain::transaction::Transaction;
 use crate::blockchain::merkle;
 use crate::blockchain::proof::ProofOfWork;
+use crate::blockchain::blockchain::Blockchain;
 
 #[derive(Deserialize, Serialize)]
 pub struct Block{
     version: Vec<u8>,
     pub prev_block: Vec<u8>,
     merkle_root: Option<Vec<u8>>,
-    timestamp: Vec<u8>,
-    bits: Vec<u8>,
+    pub timestamp: Vec<u8>,
+    pub bits: Vec<u8>,
     pub nonce: Option<Vec<u8>>,
     pub height: Vec<u8>,
     pub transactions: Vec<Transaction>
@@ -29,8 +30,8 @@ impl Block{
         merkle::MerkleTree::new(&mut tx_hashes).root_node.data.unwrap()
     }
 
-    pub fn create_block(txs: &Vec<Transaction>, prev_hash: &Vec<u8>, height: &u64) -> Self{
-         let bits =  ProofOfWork::get_bits(&height, &prev_hash);
+    pub fn create_block(txs: &Vec<Transaction>, prev_hash: &Vec<u8>, height: &u64, chain: &Blockchain) -> Self{
+         let bits =  ProofOfWork::get_bits(height, prev_hash, chain);
          let ts = match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(n) => n.as_secs() * 1000,
             Err(_) => panic!("SystemTime before UNIX EPOCH!"),
@@ -52,8 +53,8 @@ impl Block{
         block
     }
 
-    pub fn genesis(coinbase: &Transaction) -> Self{
-        return Self::create_block(vec![coinbase], vec![0x00], &0);
+    pub fn genesis(coinbase: &Transaction, chain: &Blockchain) -> Self{
+        return Self::create_block(vec![coinbase], vec![0x00], &0, chain);
     }
 
     pub fn serialize(&self) -> String{

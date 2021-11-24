@@ -14,16 +14,17 @@ use leveldb::util::FromU8;
 use leveldb::iterator::Iterable;
 use std::path::Path;
 
+
+
 pub struct Blockchain{
-    last_hash: Vec<u8>,
+    pub last_hash: Option<Vec<u8>>,
     bcdb: Database,
     pub acc: AccDB
 }
 
-impl Blockchain{
-    pub fn get_blockchain_instance(last_hash: Vec<u8>, db: &Database, acc: &AccDB) -> Self{
 
-    }
+
+impl Blockchain{
 
     pub fn add_block(&self, block: &Block){
         let read_ops = ReadOptions::new();
@@ -57,7 +58,7 @@ impl Blockchain{
                 Ok(_) => { () },
                 Err(e) => { panic!("failed to write to database: {:?}", e) }
             };
-            self.last_hash = block.hash()
+            self.last_hash = Some(block.hash())
         }
 
         self.acc.update_balance(&block)
@@ -81,7 +82,7 @@ impl Blockchain{
 
     pub fn iterator(&self) -> BlockchanIterator{
         BlockchanIterator{
-            current_hash: self.last_hash,
+            current_hash: self.last_hash.unwrap(),
             database: self.bcdb
         } 
     }
@@ -139,12 +140,17 @@ impl Blockchain{
             Err(e) => { panic!("failed to open database: {:?}", e) }
         };
         
-
         let write_ops = WriteOptions::new();
         
+        let acc = AccDB::init_accounts(&w.address());
+        let chain = Blockchain{
+            last_hash: None,
+            bcdb: database,
+            acc: acc
+        };
 
         let cbtx = Transaction::coinbase_tx(w);
-        let genesis = Block::genesis(&cbtx);
+        let genesis = Block::genesis(&cbtx,&chain);
 
         match database.put(&write_ops, &genesis.hash(), &genesis.serialize().as_bytes()[..]){
             Ok(_) => { () },
@@ -157,15 +163,10 @@ impl Blockchain{
         };
         
         let last_hash = genesis.hash();
-        
-        
-        let acc = AccDB::init_accounts(&w.address());
+        chain.last_hash = Some(last_hash);
+        chain
 
-        Blockchain{
-            last_hash: last_hash,
-            bcdb: database,
-            acc: acc
-        }
+        
     }
 
     pub fn continue_blockchain(db_path: &str) -> Self{
@@ -188,25 +189,28 @@ impl Blockchain{
         };
 
         let acc = AccDB::get_accounts();
-        let chain = Self::get_blockchain_instance(last_hash: Vec<u8>);
-        return chain
+        Blockchain{
+            last_hash: last_hash,
+            acc: acc,
+            bcdb: database
+        }
     }
 
-    pub fn find_transaction(&self, id: Vec<u8>) -> Result<Transaction, Error>{
+    pub fn find_transaction(&self, id: Vec<u8>) -> Option<Transaction> {
         let iter = self.iterator();
 
         loop{
             let block = iter.next();
             for tx in block.transactions{
                 if tx.id() == id{
-                    Ok(tx)
+                    return Some(tx);
                 }
             }
             if block.prev_block.len() == 0{
                 break
             }
         }
-        return Err(_)
+        None
     }
 
     pub fn verify_transaction(&self, tx: &Transaction) -> bool{
