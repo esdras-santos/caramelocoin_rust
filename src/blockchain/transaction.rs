@@ -1,12 +1,16 @@
 use sha2::{Sha256, Digest};
 use serde_derive::{Deserialize, Serialize};
+use ring::{
+    rand,
+    signature::{self, KeyPair},
+};
 use crate::wallet::wallet::Wallet;
 use crate::blockchain::blockchain::Blockchain;
 
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Transaction{
-    sig: Vec<u8>,
+    pub sig: Option<Vec<u8>>,
     nonce: u64,
     pub pubkey: Vec<u8>,
     pub recipient: Vec<u8>,
@@ -14,17 +18,21 @@ pub struct Transaction{
 }
     
 impl Transaction{
-    pub fn new_transaction(s: Vec<u8>, n: u64, pk: Vec<u8>, r: Vec<u8>, v: u64) -> Self{
-        Transaction{
-            //the signature need to be genereted by a the function sign
-            sig: s,
-            //the nonce needs to be taken from the balance database
-            nonce: n,
-            pubkey: pk,
-            recipient: r,
-            //the value needs to be checked in the balance database
-            value: v
+    pub fn new_transaction(from: &Wallet, to: &Vec<u8>, amount: u64, chain: &Blockchain) -> Self{
+        let (balance, nonce) = chain.acc.balance_and_nonce(&from.address());
+        if balance < amount+1 {
+            panic!("not enough balance!")
         }
+        let tx = Transaction{
+            sig: None,
+            nonce: nonce+1,
+            pubkey: from.key_pair.public_key().as_ref().to_vec(),
+            recipient: Wallet::address_to_pkh(to),
+            //amount plus fee
+            value: amount+1
+        };
+        tx.sign(from, chain);
+        tx
     }
     pub fn id(&self) -> Vec<u8>{
         let mut data: Vec<u8> = Vec::new();
@@ -79,13 +87,30 @@ impl Transaction{
         bytes
     }
 
-    // pub fn sign(&self, w: &Wallet, chain: &Blockchain) {
+    pub fn sign(&self, w: &Wallet, chain: &Blockchain) {
+        if self.is_coinbase() {
+            return
+        }
 
-    // }
+        let (balance, _) = chain.acc.balance_and_nonce(&w.address());
+        if balance >= self.value {
+            let sig = w.key_pair.sign(&self.id());
+            self.sig = Some(Vec::from(sig.as_ref()));
+        } else {
+            panic!("not enough founds!")
+        }
+    }
 
-    // pub fn verify_signature(txid: Vec<u8>, pubkey: Vec<u8>, sig: Vec<u8>) -> bool{
-// 
-    // }
+    pub fn verify_signature(txid: Vec<u8>, pubkey: Vec<u8>, sig: Vec<u8>) -> bool{
+        let peer_public_key = 
+        signature::UnparsedPublicKey::new(&signature::ED25519, pubkey);
+        let result = match peer_public_key.verify(&txid, &sig){
+            Ok(_) => true,
+            Err(e) => false
+        };
+        result
+    }
+    
 }
 
     

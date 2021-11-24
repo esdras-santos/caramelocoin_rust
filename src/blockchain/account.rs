@@ -30,7 +30,7 @@ pub struct AccDB{
     acc: Database,
 } 
 impl AccDB{
-    pub fn balance_and_nonce(&self, address: &str) -> (u64, u64) {
+    pub fn balance_and_nonce(&self, address: &Vec<u8>) -> (u64, u64) {
         let read_ops = ReadOptions::new();
         let acc = match self.acc.get(&read_ops, &Wallet::address_to_pkh(address)){
             Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
@@ -88,7 +88,7 @@ impl AccDB{
                     }
                 }
 
-                let sender = match self.acc.get(&read_ops, &Wallet::pk_to_pkh(tx.pubkey)){
+                let sender = match self.acc.get(&read_ops, &Wallet::pk_to_pkh(&tx.pubkey)){
                     Ok(d) => { match str::from_utf8(&d.unwrap()[..]) {
                         Ok(v) => crate::blockchain::account::Account::deserialize(v),
                         Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -97,7 +97,7 @@ impl AccDB{
                 };
                 sender.balance -= tx.value;
                 sender.nonce += 1;
-                match self.acc.put(&write_ops, &Wallet::pk_to_pkh(tx.pubkey), &sender.serialize().as_bytes()[..]){
+                match self.acc.put(&write_ops, &Wallet::pk_to_pkh(&tx.pubkey), &sender.serialize().as_bytes()[..]){
                     Ok(_) => { () },
                     Err(e) => { panic!("failed to write to database: {:?}", e) }
                 };
@@ -119,7 +119,7 @@ impl AccDB{
         }
     }
 
-    pub fn init_accounts(address: &str) -> Self{
+    pub fn init_accounts(address: &Vec<u8>) -> Self{
         let write_ops = WriteOptions::new();
         let path = Path::new("./tmp/accounts");
         let mut options = Options::new();

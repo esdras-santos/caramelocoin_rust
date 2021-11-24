@@ -5,6 +5,7 @@ use std::str;
 use crate::wallet::wallet::Wallet;
 use crate::blockchain::block::Block;
 use crate::blockchain::transaction::Transaction;
+use crate::blockchain::chain_iterator::BlockchanIterator;
 use crate::blockchain::account::AccDB;
 use leveldb::options::{Options, WriteOptions, ReadOptions};
 use leveldb::db::Database;
@@ -16,7 +17,7 @@ use std::path::Path;
 pub struct Blockchain{
     last_hash: Vec<u8>,
     bcdb: Database,
-    acc: AccDB
+    pub acc: AccDB
 }
 
 impl Blockchain{
@@ -77,6 +78,13 @@ impl Blockchain{
     //pub fn get_block_hashes(&self) -> Vec<Vec<u8>>{
 
     //} 
+
+    pub fn iterator(&self) -> BlockchanIterator{
+        BlockchanIterator{
+            current_hash: self.last_hash,
+            database: self.bcdb
+        } 
+    }
 
     pub fn get_best_height(&self) -> u64{
         let read_ops = ReadOptions::new();
@@ -150,11 +158,8 @@ impl Blockchain{
         
         let last_hash = genesis.hash();
         
-        let saddress = match str::from_utf8(&w.address()) {
-            Ok(v) => v,
-            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        };
-        let acc = AccDB::init_accounts(saddress);
+        
+        let acc = AccDB::init_accounts(&w.address());
 
         Blockchain{
             last_hash: last_hash,
@@ -183,17 +188,42 @@ impl Blockchain{
         };
 
         let acc = AccDB::get_accounts();
-        let chain = get_blockchain_instance(last_hash: Vec<u8>);
+        let chain = Self::get_blockchain_instance(last_hash: Vec<u8>);
         return chain
     }
 
-    // pub fn find_transaction(&self, id: Vec<u8>) -> Transaction{
+    pub fn find_transaction(&self, id: Vec<u8>) -> Result<Transaction, Error>{
+        let iter = self.iterator();
 
-    // }
+        loop{
+            let block = iter.next();
+            for tx in block.transactions{
+                if tx.id() == id{
+                    Ok(tx)
+                }
+            }
+            if block.prev_block.len() == 0{
+                break
+            }
+        }
+        return Err(_)
+    }
 
-    // pub fn verify_transaction(&self, tx: &Transaction) -> bool{
+    pub fn verify_transaction(&self, tx: &Transaction) -> bool{
+        if tx.is_coinbase() {
+            return true;
+        }
 
-    // }
+        let (balance, _) = self.acc.balance_and_nonce(&Wallet::pkh_to_address(Wallet::pk_to_pkh(&tx.pubkey)));
+        let id = tx.id();
+        if !Transaction::verify_signature(id, tx.pubkey, tx.sig.unwrap()){
+            println!("\ninvalid signature");
+            return false
+        } else if balance < tx.value {
+            return false
+        }
+        return true
+    }
     fn clone_into_array<A, T>(slice: &[T]) -> A
     where
         A: Default + AsMut<[T]>,

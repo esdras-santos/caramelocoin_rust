@@ -91,8 +91,8 @@ impl ProofOfWork{
         return (coefficient * pow(base, exponent - n)).to_biguint().unwrap(); 
     }
 
-    pub fn get_time_difference() -> (u128){
-
+    pub fn get_time_difference() -> u64{
+        
     }
 
     pub fn validate(&self) -> bool{

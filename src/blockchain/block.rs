@@ -10,7 +10,7 @@ use crate::blockchain::proof::ProofOfWork;
 #[derive(Deserialize, Serialize)]
 pub struct Block{
     version: Vec<u8>,
-    prev_block: Vec<u8>,
+    pub prev_block: Vec<u8>,
     merkle_root: Option<Vec<u8>>,
     timestamp: Vec<u8>,
     bits: Vec<u8>,
